@@ -41,21 +41,37 @@ local Skeleton = {
 }
 Skeleton.__index = Skeleton;
 
+-- Function to check if a skeleton is visible
+function Skeleton:isVisibleToPlayer()
+    local character = self.Player.Character
+    if not character or not character:FindFirstChild("Head") then return false end
+
+    local headPosition = character.Head.Position
+    local cameraPosition = Camera.CFrame.Position
+    local direction = (headPosition - cameraPosition).unit * 100  -- Raycast towards the head
+
+    local raycastResult = workspace:Raycast(cameraPosition, direction)
+    if raycastResult and raycastResult.Instance then
+        return false  -- Blocked by an object (e.g., wall)
+    end
+    return true  -- Visible
+end
+
 function Skeleton:UpdateStructure()
     if not self.Player.Character then return end
 
-    self:RemoveLines();
+    self:RemoveLines()
 
-    for _, part in next, self.Player.Character:GetChildren() do		
+    for _, part in next, self.Player.Character:GetChildren() do
         if not part:IsA("BasePart") then
             continue;
         end
 
-        for _, link in next, part:GetChildren() do			
+        for _, link in next, part:GetChildren() do
             if not link:IsA("Motor6D") then
                 continue;
             end
-			
+            
             TBINSERT(
                 self.Lines,
                 {
@@ -135,7 +151,13 @@ function Skeleton:Update()
         return;
     end
 
-    self:SetColor(self.Color);
+    -- Check visibility and update skeleton color
+    if self:isVisibleToPlayer() then
+        self:SetColor(Color3.fromRGB(255, 200, 200))  -- Light red if visible
+    else
+        self:SetColor(Color3.fromRGB(255, 0, 0))  -- Red if not visible (blocked)
+    end
+
     self:SetAlpha(self.Alpha);
     self:SetThickness(self.Thickness);
 
@@ -280,28 +302,4 @@ end
 -- LIBRARY FORMAT
 if true then
     return Library;
-end
-
--- TEST
-if false then
-    -- local Library = loadstring(game:HttpGet("https://raw.githubusercontent.com/Blissful4992/ESPs/main/UniversalSkeleton.lua"))()
-
-    local Skeletons = {}
-    for _, Player in next, game.Players:GetChildren() do
-        if Player ~= LocalPlayer then
-            table.insert(Skeletons, Library:NewSkeleton(Player, true));
-        end
-    end
-    game.Players.PlayerAdded:Connect(function(Player)
-        table.insert(Skeletons, Library:NewSkeleton(Player, true));
-    end)
-
-    while true do
-        for _, skeleton in next, Skeletons do
-            skeleton:SetColor(Color3.fromRGB(skeleton.Player.TeamColor == LocalPlayer.TeamColor and Color3.fromRGB(255, 255, 255) or Color3.fromRGB(255, 0, 0)));  -- White color
-            skeleton:SetThickness(4);
-        end
-
-        task.wait(1)
-    end
 end
