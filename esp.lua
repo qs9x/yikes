@@ -18,7 +18,7 @@ Library.__index = Library;
 function Library:NewLine(info)
     local l = Drawing.new("Line")
     l.Visible = info.Visible or true;
-    l.Color = info.Color or Color3.fromRGB(255, 255, 255);  -- Changed to white
+    l.Color = info.Color or Color3.fromRGB(255, 255, 255);  -- Default to white
     l.Transparency = info.Transparency or 1;
     l.Thickness = info.Thickness or 1;
     return l
@@ -152,7 +152,7 @@ function Skeleton:Update()
     end
 
     -- Fading Color Logic (from Purple to White and back)
-    local timeElapsed = tick() -- `tick()` gives the current time in seconds since the start of the game
+    local timeElapsed = tick()  -- `tick()` gives the current time in seconds since the start of the game
     local fadeFactor = (math.sin(timeElapsed * 2) + 1) / 2  -- Oscillates between 0 and 1
 
     local purple = Color3.fromRGB(128, 0, 128)  -- Purple color
