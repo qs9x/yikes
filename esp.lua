@@ -151,12 +151,18 @@ function Skeleton:Update()
         return;
     end
 
-    -- Check visibility and update skeleton color
-    if self:isVisibleToPlayer() then
-        self:SetColor(Color3.fromRGB(255, 200, 200))  -- Light red if visible
-    else
-        self:SetColor(Color3.fromRGB(255, 0, 0))  -- Red if not visible (blocked)
-    end
+    -- Fading Color Logic (from Purple to White and back)
+    local timeElapsed = tick() -- `tick()` gives the current time in seconds since the start of the game
+    local fadeFactor = (math.sin(timeElapsed * 2) + 1) / 2  -- Oscillates between 0 and 1
+
+    local purple = Color3.fromRGB(128, 0, 128)  -- Purple color
+    local white = Color3.fromRGB(255, 255, 255)  -- White color
+
+    -- Interpolate between purple and white based on the fadeFactor
+    local color = purple:Lerp(white, fadeFactor)
+
+    -- Set the color for the skeleton
+    self:SetColor(color)
 
     self:SetAlpha(self.Alpha);
     self:SetThickness(self.Thickness);
