@@ -46,14 +46,19 @@ local function Visibility(state, lib)
     end
 end
 
-local function ToColor3(col) --Function to convert, just cuz c;
+local function ToColor3(col)
     local r = col.r --Red value
     local g = col.g --Green value
     local b = col.b --Blue value
-    return Color3.new(r,g,b); --Color3 datatype, made of the RGB inputs
+    return Color3.new(r, g, b)
 end
 
-local black = Color3.fromRGB(0, 0 ,0)
+local black = Color3.fromRGB(0, 0, 0)
+
+-- Color transition between purple and pink
+local purple = Color3.fromRGB(128, 0, 128)  -- Purple color
+local pink = Color3.fromRGB(255, 105, 180)  -- Pink color
+
 local function ESP(plr)
     local library = {
         --// Box and Black Box(black border)
@@ -64,10 +69,16 @@ local function ESP(plr)
         greenhealth = NewLine(1.5, black)
     }
 
-    local function Colorize(color)
-        for u, x in pairs(library) do
+    local function Colorize()
+        -- Calculate the interpolated color between purple and pink over time
+        local time = tick()  -- Current time in seconds
+        local lerpFactor = math.sin(time * 2) * 0.5 + 0.5  -- Oscillate between 0 and 1 using sine function
+        local fadingColor = purple:lerp(pink, lerpFactor)  -- Interpolate between purple and pink
+
+        -- Apply the fading color to all elements that are not health bars
+        for _, x in pairs(library) do
             if x ~= library.healthbar and x ~= library.greenhealth and x ~= library.black then
-                x.Color = color
+                x.Color = fadingColor  -- Apply the fading color to the box
             end
         end
     end
