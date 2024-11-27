@@ -1,311 +1,147 @@
-local WAIT = task.wait
-local TBINSERT = table.insert
-local TBFIND = table.find
-local TBREMOVE = table.remove
-local V2 = Vector2.new
-local ROUND = math.round
-
-local RS = game:GetService("RunService")
-local Camera = workspace.CurrentCamera
-local To2D = Camera.WorldToViewportPoint
-local LocalPlayer = game.Players.LocalPlayer
-
--- Only thing for now is Skeleton
-local Library = {};
-Library.__index = Library;
-
--- Functions
-function Library:NewLine(info)
-    local l = Drawing.new("Line")
-    l.Visible = info.Visible or true;
-    l.Color = info.Color or Color3.fromRGB(255, 255, 255);  -- Default to white
-    l.Transparency = info.Transparency or 1;
-    l.Thickness = info.Thickness or 1;
-    return l
-end
-
-function Library:Smoothen(v)
-    return V2(ROUND(v.X), ROUND(v.Y))
-end
-
--- Skeleton Object
-local Skeleton = {
-    Removed = false;
-    Player = nil;
-    Visible = false;
-    Lines = {};
-    Color = Color3.fromRGB(255, 255, 255);  -- Default to white
-    Alpha = 1;
-    Thickness = 1;
-    DoSubsteps = true;
+-- Preview: https://cdn.discordapp.com/attachments/796378086446333984/818089455897542687/unknown.png
+-- Made by Blissful#4992
+local Settings = {
+    Box_Color = Color3.fromRGB(255, 0, 0),
+    Box_Thickness = 1,
+    Tracers = false  -- Disable tracers entirely
 }
-Skeleton.__index = Skeleton;
+local Team_Check = {
+    TeamCheck = false, -- if TeamColor is on this won't matter...
+    Green = Color3.fromRGB(0, 255, 0),
+    Red = Color3.fromRGB(255, 0, 0)
+}
+local TeamColor = true
 
--- Function to check if a skeleton is visible
-function Skeleton:isVisibleToPlayer()
-    local character = self.Player.Character
-    if not character or not character:FindFirstChild("Head") then return false end
+--// SEPARATION
+local player = game:GetService("Players").LocalPlayer
+local camera = game:GetService("Workspace").CurrentCamera
+local mouse = player:GetMouse()
 
-    local headPosition = character.Head.Position
-    local cameraPosition = Camera.CFrame.Position
-    local direction = (headPosition - cameraPosition).unit * 100  -- Raycast towards the head
-
-    local raycastResult = workspace:Raycast(cameraPosition, direction)
-    if raycastResult and raycastResult.Instance then
-        return false  -- Blocked by an object (e.g., wall)
-    end
-    return true  -- Visible
+local function NewQuad(thickness, color)
+    local quad = Drawing.new("Quad")
+    quad.Visible = false
+    quad.PointA = Vector2.new(0,0)
+    quad.PointB = Vector2.new(0,0)
+    quad.PointC = Vector2.new(0,0)
+    quad.PointD = Vector2.new(0,0)
+    quad.Color = color
+    quad.Filled = false
+    quad.Thickness = thickness
+    quad.Transparency = 1
+    return quad
 end
 
-function Skeleton:UpdateStructure()
-    if not self.Player.Character then return end
+local function NewLine(thickness, color)
+    local line = Drawing.new("Line")
+    line.Visible = false
+    line.From = Vector2.new(0, 0)
+    line.To = Vector2.new(0, 0)
+    line.Color = color 
+    line.Thickness = thickness
+    line.Transparency = 1
+    return line
+end
 
-    self:RemoveLines()
+local function Visibility(state, lib)
+    for u, x in pairs(lib) do
+        x.Visible = state
+    end
+end
 
-    for _, part in next, self.Player.Character:GetChildren() do
-        if not part:IsA("BasePart") then
-            continue;
-        end
+local function ToColor3(col) --Function to convert, just cuz c;
+    local r = col.r --Red value
+    local g = col.g --Green value
+    local b = col.b --Blue value
+    return Color3.new(r,g,b); --Color3 datatype, made of the RGB inputs
+end
 
-        for _, link in next, part:GetChildren() do
-            if not link:IsA("Motor6D") then
-                continue;
+local black = Color3.fromRGB(0, 0 ,0)
+local function ESP(plr)
+    local library = {
+        --// Box and Black Box(black border)
+        black = NewQuad(Settings.Box_Thickness*2, black),
+        box = NewQuad(Settings.Box_Thickness, Settings.Box_Color),
+        --// Bar and Green Health Bar (part that moves up/down)
+        healthbar = NewLine(3, black),
+        greenhealth = NewLine(1.5, black)
+    }
+
+    local function Colorize(color)
+        for u, x in pairs(library) do
+            if x ~= library.healthbar and x ~= library.greenhealth and x ~= library.black then
+                x.Color = color
             end
-            
-            TBINSERT(
-                self.Lines,
-                {
-                    Library:NewLine({
-                        Visible = self.Visible;
-                        Color = self.Color;
-                        Transparency = self.Alpha;
-                        Thickness = self.Thickness;
-                    }),
-                    Library:NewLine({
-                        Visible = self.Visible;
-                        Color = self.Color;
-                        Transparency = self.Alpha;
-                        Thickness = self.Thickness;
-                    }),
-                    part.Name,
-                    link.Name
-                }
-            );
         end
     end
-end
 
-function Skeleton:SetVisible(State)
-    for _,l in pairs(self.Lines) do
-        l[1].Visible = State;
-        l[2].Visible = State;
-    end
-end
+    local function Updater()
+        local connection
+        connection = game:GetService("RunService").RenderStepped:Connect(function()
+            if plr.Character ~= nil and plr.Character:FindFirstChild("Humanoid") ~= nil and plr.Character:FindFirstChild("HumanoidRootPart") ~= nil and plr.Character.Humanoid.Health > 0 and plr.Character:FindFirstChild("Head") ~= nil then
+                local HumPos, OnScreen = camera:WorldToViewportPoint(plr.Character.HumanoidRootPart.Position)
+                if OnScreen then
+                    local head = camera:WorldToViewportPoint(plr.Character.Head.Position)
+                    local DistanceY = math.clamp((Vector2.new(head.X, head.Y) - Vector2.new(HumPos.X, HumPos.Y)).magnitude, 2, math.huge)
+                    
+                    local function Size(item)
+                        item.PointA = Vector2.new(HumPos.X + DistanceY, HumPos.Y - DistanceY*2)
+                        item.PointB = Vector2.new(HumPos.X - DistanceY, HumPos.Y - DistanceY*2)
+                        item.PointC = Vector2.new(HumPos.X - DistanceY, HumPos.Y + DistanceY*2)
+                        item.PointD = Vector2.new(HumPos.X + DistanceY, HumPos.Y + DistanceY*2)
+                    end
+                    Size(library.box)
+                    Size(library.black)
 
-function Skeleton:SetColor(Color)
-    self.Color = Color;
-    for _,l in pairs(self.Lines) do
-        l[1].Color = Color;
-        l[2].Color = Color;
-    end
-end
+                    --// Health Bar
+                    local d = (Vector2.new(HumPos.X - DistanceY, HumPos.Y - DistanceY*2) - Vector2.new(HumPos.X - DistanceY, HumPos.Y + DistanceY*2)).magnitude 
+                    local healthoffset = plr.Character.Humanoid.Health/plr.Character.Humanoid.MaxHealth * d
 
-function Skeleton:SetAlpha(Alpha)
-    self.Alpha = Alpha;
-    for _,l in pairs(self.Lines) do
-        l[1].Transparency = Alpha;
-        l[2].Transparency = Alpha;
-    end
-end
+                    library.greenhealth.From = Vector2.new(HumPos.X - DistanceY - 4, HumPos.Y + DistanceY*2)
+                    library.greenhealth.To = Vector2.new(HumPos.X - DistanceY - 4, HumPos.Y + DistanceY*2 - healthoffset)
 
-function Skeleton:SetThickness(Thickness)
-    self.Thickness = Thickness;
-    for _,l in pairs(self.Lines) do
-        l[1].Thickness = Thickness;
-        l[2].Thickness = Thickness;
-    end
-end
+                    library.healthbar.From = Vector2.new(HumPos.X - DistanceY - 4, HumPos.Y + DistanceY*2)
+                    library.healthbar.To = Vector2.new(HumPos.X - DistanceY - 4, HumPos.Y - DistanceY*2)
 
-function Skeleton:SetDoSubsteps(State)
-    self.DoSubsteps = State;
-end
+                    local green = Color3.fromRGB(0, 255, 0)
+                    local red = Color3.fromRGB(255, 0, 0)
 
--- Main Update Loop
-function Skeleton:Update()
-    if self.Removed then
-        return;
-    end
+                    library.greenhealth.Color = red:lerp(green, plr.Character.Humanoid.Health/plr.Character.Humanoid.MaxHealth);
 
-    local Character = self.Player.Character;
-    if not Character then
-        self:SetVisible(false);
-        if not self.Player.Parent then
-            self:Remove();
-        end
-        return;
-    end
-
-    local Humanoid = Character:FindFirstChildOfClass("Humanoid");
-    if not Humanoid then
-        self:SetVisible(false);
-        return;
-    end
-
-    -- Fading Color Logic (from Purple to White and back)
-    local timeElapsed = tick()  -- `tick()` gives the current time in seconds since the start of the game
-    local fadeFactor = (math.sin(timeElapsed * 2) + 1) / 2  -- Oscillates between 0 and 1
-
-    local purple = Color3.fromRGB(128, 0, 128)  -- Purple color
-    local white = Color3.fromRGB(255, 255, 255)  -- White color
-
-    -- Interpolate between purple and white based on the fadeFactor
-    local color = purple:Lerp(white, fadeFactor)
-
-    -- Set the color for the skeleton
-    self:SetColor(color)
-
-    self:SetAlpha(self.Alpha);
-    self:SetThickness(self.Thickness);
-
-    local update = false;
-    for _, l in pairs(self.Lines) do
-        local part = Character:FindFirstChild(l[3])
-        if not part then
-            l[1].Visible = false;
-            l[2].Visible = false;
-            update = true;
-            continue;
-        end
-
-        local link = part:FindFirstChild(l[4])
-        if not (link and link.part0 and link.part1) then
-            l[1].Visible = false;
-            l[2].Visible = false;
-            update = true;
-            continue;
-        end
-
-        local part0 = link.Part0;
-        local part1 = link.Part1;
-        
-        if self.DoSubsteps and link.C0 and link.C1 then
-            local c0 = link.C0;
-            local c1 = link.C1;
-
-            -- Center of part0 to c0
-            local part0p, v1 = To2D(Camera, part0.CFrame.p);
-            local part0cp, v2 = To2D(Camera, (part0.CFrame * c0).p);
-            
-            if v1 and v2 then
-                l[1].From = V2(part0p.x, part0p.y);
-                l[1].To = V2(part0cp.x, part0cp.y);
-
-                l[1].Visible = true;
+                    if Team_Check.TeamCheck then
+                        if plr.TeamColor == player.TeamColor then
+                            Colorize(Team_Check.Green)
+                        else 
+                            Colorize(Team_Check.Red)
+                        end
+                    else 
+                        library.box.Color = Settings.Box_Color
+                    end
+                    if TeamColor == true then
+                        Colorize(plr.TeamColor.Color)
+                    end
+                    Visibility(true, library)
+                else 
+                    Visibility(false, library)
+                end
             else 
-                l[1].Visible = false;
+                Visibility(false, library)
+                if game.Players:FindFirstChild(plr.Name) == nil then
+                    connection:Disconnect()
+                end
             end
-            
-            -- Center of part1 to c1
-            local part1p, v3 = To2D(Camera, part1.CFrame.p);
-            local part1cp, v4 = To2D(Camera, (part1.CFrame * c1).p);
-        
-            if v3 and v4 then
-                l[2].From = V2(part1p.x, part1p.y);
-                l[2].To = V2(part1cp.x, part1cp.y);
-
-                l[2].Visible = true;
-            else 
-                l[2].Visible = false;
-            end
-        else					
-            local part0p, v1 = To2D(Camera, part0.CFrame.p);
-            local part1p, v2 = To2D(Camera, part1.CFrame.p);
-            
-            if v1 and v2 then
-                l[1].From = V2(part0p.x, part0p.y);
-                l[1].To = V2(part1p.x, part1p.y);
-
-                l[1].Visible = true;
-            else 
-                l[1].Visible = false;
-            end
-            
-            l[2].Visible = false;
-        end
-    end
-    
-    if update or #self.Lines == 0 then
-        self:UpdateStructure();
-    end
-end
-
-function Skeleton:Toggle()
-    self.Visible = not self.Visible;
-
-    if self.Visible then 
-        self:RemoveLines();
-        self:UpdateStructure();
-        
-        local c;c = RS.Heartbeat:Connect(function()
-            if not self.Visible then
-                self:SetVisible(false);
-                c:Disconnect();
-                return;
-            end
-
-            self:Update();
         end)
     end
+    coroutine.wrap(Updater)()
 end
 
-function Skeleton:RemoveLines()
-    for _,l in pairs(self.Lines) do
-        l[1]:Remove();
-        l[2]:Remove();
+for i, v in pairs(game:GetService("Players"):GetPlayers()) do
+    if v.Name ~= player.Name then
+        coroutine.wrap(ESP)(v)
     end
-    self.Lines = {};
 end
 
-function Skeleton:Remove()
-    self.Removed = true;
-    self:RemoveLines();
-end
-
--- Create Skeleton Function
-function Library:NewSkeleton(Player, Visible, Color, Alpha, Thickness, DoSubsteps)
-    if not Player then
-        error("Missing Player argument (#1)")
+game.Players.PlayerAdded:Connect(function(newplr)
+    if newplr.Name ~= player.Name then
+        coroutine.wrap(ESP)(newplr)
     end
-    
-    local s = setmetatable({}, Skeleton);
-
-    s.Player = Player;
-    s.Bind = Player.UserId;
-    
-    if DoSubsteps ~= nil then
-        s.DoSubsteps = DoSubsteps;
-    end
-    
-    if Color then
-        s:SetColor(Color)
-    end
-    
-    if Alpha then
-        s:SetAlpha(Alpha)
-    end
-    
-    if Thickness then
-        s:SetThickness(Thickness)
-    end
-
-    if Visible then
-        s:Toggle();
-    end
-
-    return s;
-end
-
--- LIBRARY FORMAT
-if true then
-    return Library;
-end
+end)
